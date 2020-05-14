@@ -1,0 +1,15 @@
+% The following testcase has been stolen from ICU4C, source/test/testdata/casing.txt
+\input{regression-test.tex}
+\documentclass{article}
+\START
+\directlua{
+  local casefold = require'lua-uni-algos'.case.casefold
+  assert(casefold, "Casefolding support missing")
+  for _, s in ipairs{
+    "Straße",
+    "aBİIıϐßﬃ񟿿"
+  } do
+    texio.write_nl('log and term', s, casefold(s), casefold(s, true), casefold(s, false, true), casefold(s, true, true))
+  end
+}
+\END
