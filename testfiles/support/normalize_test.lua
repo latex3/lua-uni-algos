@@ -48,7 +48,7 @@ if not results then
   error'Reading tests failed'
 end
 for k=3,#results do
-  print(string.format('Failure at test %i, offset %i, %s', results[k][1], results[k][2], require'inspect'(results[k][3])))
+  texio.write_nl(string.format('Failure at test %i, offset %i, %s', results[k][1], results[k][2], require'inspect'(results[k][3])))
 end
-print(string.format("%i/%i tests succeeded!", results[2], results[1]))
+texio.write_nl(string.format("%i/%i tests succeeded!", results[2], results[1]))
 -- os.exit(results[1] == results[2] and 0 or 1)
