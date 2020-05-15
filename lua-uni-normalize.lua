@@ -169,8 +169,17 @@ local function ccc_reorder(codepoints, i, j, k)
   codepoints[new_pos] = first
   return ccc_reorder(codepoints, i, j, k == i and i or k-1)
 end
+local result_table = {}
+local function get_string()
+  local result_table = result_table
+  local s = char(unpack(result_table))
+  for i=1,#result_table do
+    result_table[i] = nil
+  end
+  return s
+end
 function to_nfd_table(s, decomposition_mapping)
-  local new_codepoints = newtable(#s, 0)
+  local new_codepoints = result_table
   local j = 1
   for _, c in codes(s) do
     local decomposed = decomposition_mapping[c]
@@ -197,16 +206,18 @@ function to_nfd_table(s, decomposition_mapping)
     end
   end
   ccc_reorder(new_codepoints, 1, #new_codepoints, 1)
-  return new_codepoints
 end
 local function to_nfd(s)
-  return char(unpack(to_nfd_table(s, decomposition_mapping)))
+  to_nfd_table(s, decomposition_mapping)
+  return get_string()
 end
 local function to_nfkd(s)
-  return char(unpack(to_nfd_table(s, compatibility_mapping)))
+  to_nfd_table(s, compatibility_mapping)
+  return get_string()
 end
 local function to_nfc_generic(s, decomposition_mapping)
-  local codepoints = to_nfd_table(s, decomposition_mapping)
+  to_nfd_table(s, decomposition_mapping)
+  local codepoints = result_table
   local starter, lookup, last_ccc, lvt
   local j = 1
   for i, c in ipairs(codepoints) do
@@ -249,7 +260,7 @@ local function to_nfc_generic(s, decomposition_mapping)
     ::CONTINUE::
   end
   for i = j,#codepoints do codepoints[i] = nil end
-  return char(unpack(codepoints))
+  return get_string()
 end
 local function to_nfc(s)
   return to_nfc_generic(s, decomposition_mapping)
