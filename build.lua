@@ -12,12 +12,12 @@ tdsroot = "luatex"
 
 uploadconfig = {
   pkg = module,
-  version = "v0.1",
+  version = "v0.2",
   author = "Marcel Krüger",
   license = "lppl1.3c",
   summary = "Unicode algorithms for LuaTeX",
   ctanPath = "/macros/luatex/generic/lua-uni-algos",
-  update = false,
+  update = true,
   repository = "https://github.com/zauguin/lua-uni-algos",
   bugtracker = "https://github.com/zauguin/lua-uni-algos/issues",
   topic = {"luatex", "unicode"},
