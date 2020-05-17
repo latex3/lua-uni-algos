@@ -233,7 +233,7 @@ local function to_nfc_generic(s, decomposition_mapping)
       end
     elseif lvt then
       if lvt == 1 then
-        if c >= 0x1161 and c <= 0x11A7 then
+        if c >= 0x1161 and c <= 0x1175 then
           lvt = 2
           codepoints[starter] = ((codepoints[starter] - 0x1100) * 21 + c - 0x1161) * 28 + 0xAC00
           goto CONTINUE
