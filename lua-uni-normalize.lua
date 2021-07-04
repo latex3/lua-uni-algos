@@ -169,6 +169,7 @@ local function ccc_reorder(codepoints, i, j, k)
   codepoints[new_pos] = first
   return ccc_reorder(codepoints, i, j, k == i and i or k-1)
 end
+
 local result_table = {}
 local function get_string()
   local result_table = result_table
@@ -269,11 +270,145 @@ local function to_nfkc(s)
   return to_nfc_generic(s, compatibility_mapping)
 end
 
+-- We ignore Hangul thingies for now
+local function nodes_to_nfc(head, f)
+  if not head then return head end
+  local tmp_node = node.new'temp'
+  -- This is more complicated since we want to ensure that nodes (including their attributes and properties) are preserved whenever possible
+  --
+  -- We use three passes:
+  -- 1. Decompose composition exclusions etc.
+  local n = head
+  while n do
+    local char = node.is_char(n, f)
+    if char then
+      local decomposed = decomposition_mapping[char]
+      if decomposed then
+        local compose_lookup = composition_mapping[decomposed[1]]
+        if not (compose_lookup and compose_lookup[decomposed[2]]) then
+          -- Here we never want to compose again, so we can decompose directly
+          n.char = decomposed[1]
+          for i=2, #decomposed do
+            local nn = node.copy(n)
+            nn.char = decomposed[i]
+            node.insert_after(head, n, nn)
+            n = nn
+          end
+        end
+      end
+    end
+    n = n.next
+  end
+  -- 2. Reorder marks
+  local last_ccc
+  n = head
+  local prev = head.prev
+  tmp_node.next, head.prev = head, tmp_node
+  while n do
+    local char = node.is_char(n, f)
+    if char then
+      local this_ccc = ccc[char]
+      if last_ccc and this_ccc and last_ccc > this_ccc then
+        local nn = n
+        while nn ~= tmp_node do
+          nn = nn.prev
+          local nn_char = node.is_char(nn, f)
+          if not nn_char then break end
+          local nn_ccc = ccc[nn_char]
+          if not nn_ccc or nn_ccc <= this_ccc then break end
+        end
+        local before, after = n.prev, n.next
+        node.insert_after(head, nn, n)
+        before.next = after
+        if after then after.prev = before end
+        n = after
+      else
+        n = n.next
+        last_ccc = this_ccc
+      end
+    else
+      n = n.next
+      last_ccc = nil
+    end
+  end
+  head, head.prev = tmp_node.next, prev
+  -- 3. The rest: Maybe decompose and then compose again
+  local starter_n, starter, lookup
+  local starter_decomposition
+  local last_ccc
+  local i -- index into starter_decomposition
+  local i_ccc
+  n = head
+  node.insert_after(head, nil, tmp_node)
+  repeat
+    local char = node.is_char(n, f)
+    local this_ccc = ccc[char] or 300
+    while i and i_ccc <= this_ccc do
+      local new_starter = lookup and lookup[starter_decomposition[i]]
+      if new_starter then
+        starter = new_starter
+        starter_n.char = starter
+        lookup = composition_mapping[starter]
+      else
+        local nn = node.copy(starter_n)
+        nn.char = starter_decomposition[i]
+        node.insert_before(head, n, nn)
+      end
+      i = i + 1
+      local i_char = starter_decomposition[i]
+      if i_char then
+        i_ccc = ccc[starter_decomposition[i]] or 300
+      else
+        i = nil
+      end
+    end
+    if char then
+      if lookup and (this_ccc == 300) == (this_ccc == last_ccc) then
+        local new_starter = lookup[char]
+        if new_starter then
+          local last = n.prev
+          node.remove(head, n)
+          n = last
+          starter = new_starter
+          starter_n.char = starter
+          lookup = composition_mapping[starter]
+        else
+          last_ccc = this_ccc
+        end
+      else
+        last_ccc = this_ccc
+      end
+      if this_ccc == 300 then
+        starter_n = n
+        starter_decomposition = decomposition_mapping[char]
+        starter = starter_decomposition and starter_decomposition[1] or char
+        starter_n.char = starter
+        lookup = composition_mapping[starter]
+        if starter_decomposition then
+          i, i_ccc = 2, ccc[starter_decomposition[2]] or 300
+        else
+          i, i_ccc = nil
+        end
+      end
+    else
+      starter, lookup, last_ccc, last_decomposition, i, i_ccc = nil
+    end
+    if n == tmp_node then
+      node.remove(head, tmp_node)
+      break
+    end
+    n = n.next
+  until false
+  node.free(tmp_node)
+  return head
+end
+
 return {
   NFD = to_nfd,
   NFC = to_nfc,
   NFKD = to_nfkd,
   NFKC = to_nfkc,
+  nodes_NFC = nodes_to_nfc,
 }
 -- print(require'inspect'{to_nfd{0x1E0A}, to_nfc{0x1E0A}})
 
