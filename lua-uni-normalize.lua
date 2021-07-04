@@ -270,7 +270,6 @@ local function to_nfkc(s)
   return to_nfc_generic(s, compatibility_mapping)
 end
 
--- We ignore Hangul thingies for now
 local function nodes_to_nfc(head, f)
   if not head then return head end
   local tmp_node = node.new'temp'
@@ -368,12 +367,30 @@ local function nodes_to_nfc(head, f)
         if new_starter then
           local last = n.prev
           node.remove(head, n)
+          node.free(n)
           n = last
           starter = new_starter
-          starter_n.char = starter
+          starter_n.char, char = starter, starter
           lookup = composition_mapping[starter]
         else
           last_ccc = this_ccc
+        end
+       -- Now handle Hangul syllables. We never decompose them since we would just recompose them anyway and they are starters
+      elseif not lookup and this_ccc == 300 and last_ccc == 300 then
+        if starter >= 0x1100 and starter <= 0x1112 and char >= 0x1161 and char <= 0x1175 then -- L + V -> LV
+          node.remove(head, n)
+          node.free(n)
+          starter = ((starter - 0x1100) * 21 + char - 0x1161) * 28 + 0xAC00
+          starter_n.char, char = starter, starter
+          lookup = composition_mapping[starter]
+          n = starter_n
+        elseif char >= 0x11A8 and char <= 0x11C2 and starter >= 0xAC00 and starter <= 0xD7A3 and (starter-0xAC00) % 28 == 0 then -- LV + T -> LVT
+          node.remove(head, n)
+          node.free(n)
+          starter = starter + char - 0x11A7
+          starter_n.char, char = starter, starter
+          lookup = composition_mapping[starter]
+          n = starter_n
         end
       else
         last_ccc = this_ccc
