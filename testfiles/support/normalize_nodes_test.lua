@@ -3,14 +3,17 @@ local normalize = require'lua-uni-normalize'
 local nodes_to_nfc = normalize.nodes_NFC
 -- local to_nfc, to_nfd, to_nfkc, to_nfkd = normalize.NFC, normalize.NFD, normalize.NFKC, normalize.NFKD
 
-local function to_nfc(s)
+local all_true = setmetatable({}, {__index = function() return true end})
+local function to_nfc(s, allowed_characters, preserve_attr)
   local head, last
   for _, cp in utf8.codes(s) do
     local n = node.new'glyph'
-    n.char = cp
+    n.char, n.font = cp, 1
     head, last = node.insert_after(head, last, n)
   end
-  head = nodes_to_nfc(head)
+  -- head = nodes_to_nfc(head, 1)
+  head = nodes_to_nfc(head, 1, allowed_characters, true)
+  -- head = nodes_to_nfc(head, 1, all_true, true)
   local codepoints = {}
   last = 0
   for n in node.traverse(head) do
@@ -20,13 +23,14 @@ local function to_nfc(s)
   return utf8.char(table.unpack(codepoints))
 end
 local function dostep(orig, nfc, nfd, nfkc, nfkd)
-  local our_nfc = to_nfc(orig)
+  local our_nfc = to_nfc(orig, all_true, true)
   -- local our_nfd = to_nfd(orig)
   -- local our_nfkc = to_nfkc(orig)
   -- local our_nfkd = to_nfkd(orig)
   if nfc ~= our_nfc then
   -- if nfc ~= our_nfc or nfd ~= our_nfd or nfkc ~= our_nfkc or nfkd ~= our_nfkd then
     return {
+      orig = orig,
       nfc = nfc ~= our_nfc and our_nfc or nil,
       exp_nfc = nfc ~= our_nfc and nfc or nil,
       -- nfd = nfd ~= our_nfd and our_nfd or nil,

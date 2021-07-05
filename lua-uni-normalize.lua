@@ -270,7 +270,9 @@ local function to_nfkc(s)
   return to_nfc_generic(s, compatibility_mapping)
 end
 
-local function nodes_to_nfc(head, f)
+-- allowed_characters only works reliably if it's closed under canonical decomposition mappings
+-- but it should fail in reasonable ways as long as it's at least closed under full canonical decompositions
+local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   if not head then return head end
   local tmp_node = node.new'temp'
   -- This is more complicated since we want to ensure that nodes (including their attributes and properties) are preserved whenever possible
@@ -285,13 +287,25 @@ local function nodes_to_nfc(head, f)
       if decomposed then
         local compose_lookup = composition_mapping[decomposed[1]]
         if not (compose_lookup and compose_lookup[decomposed[2]]) then
-          -- Here we never want to compose again, so we can decompose directly
-          n.char = decomposed[1]
-          for i=2, #decomposed do
-            local nn = node.copy(n)
-            nn.char = decomposed[i]
-            node.insert_after(head, n, nn)
-            n = nn
+          local available = true
+          if allowed_characters then
+            -- This is probably buggy for werd fonts
+            for i=1, #decomposed do
+              if not allowed_characters[decomposed[i]] then
+                available = false
+                break
+              end
+            end
+          end
+          if available then
+            -- Here we never want to compose again, so we can decompose directly
+            n.char = decomposed[1]
+            for i=2, #decomposed do
+              local nn = node.copy(n)
+              nn.char = decomposed[i]
+              node.insert_after(head, n, nn)
+              n = nn
+            end
           end
         end
       end
@@ -344,7 +358,7 @@ local function nodes_to_nfc(head, f)
     local this_ccc = ccc[char] or 300
     while i and i_ccc <= this_ccc do
       local new_starter = lookup and lookup[starter_decomposition[i]]
-      if new_starter then
+      if new_starter and (not allowed_characters or allowed_characters[new_starter]) then
         starter = new_starter
         starter_n.char = starter
         lookup = composition_mapping[starter]
@@ -352,6 +366,7 @@ local function nodes_to_nfc(head, f)
         local nn = node.copy(starter_n)
         nn.char = starter_decomposition[i]
         node.insert_before(head, n, nn)
+        last_ccc = i_ccc
       end
       i = i + 1
       local i_char = starter_decomposition[i]
@@ -364,7 +379,7 @@ local function nodes_to_nfc(head, f)
     if char then
       if lookup and (this_ccc == 300) == (this_ccc == last_ccc) then
         local new_starter = lookup[char]
-        if new_starter then
+        if new_starter and (not allowed_characters or allowed_characters[new_starter]) and (not preserve_attr or starter_n.attr == n.attr) then
           local last = n.prev
           node.remove(head, n)
           node.free(n)
@@ -378,19 +393,25 @@ local function nodes_to_nfc(head, f)
        -- Now handle Hangul syllables. We never decompose them since we would just recompose them anyway and they are starters
       elseif not lookup and this_ccc == 300 and last_ccc == 300 then
         if starter >= 0x1100 and starter <= 0x1112 and char >= 0x1161 and char <= 0x1175 then -- L + V -> LV
-          node.remove(head, n)
-          node.free(n)
-          starter = ((starter - 0x1100) * 21 + char - 0x1161) * 28 + 0xAC00
-          starter_n.char, char = starter, starter
-          lookup = composition_mapping[starter]
-          n = starter_n
+          local new_starter = ((starter - 0x1100) * 21 + char - 0x1161) * 28 + 0xAC00
+          if (not allowed_characters or allowed_characters[new_starter]) and (not preserve_attr or starter_n.attr == n.attr) then
+            node.remove(head, n)
+            node.free(n)
+            starter = starter
+            starter_n.char, char = starter, starter
+            lookup = composition_mapping[starter]
+            n = starter_n
+          end
         elseif char >= 0x11A8 and char <= 0x11C2 and starter >= 0xAC00 and starter <= 0xD7A3 and (starter-0xAC00) % 28 == 0 then -- LV + T -> LVT
-          node.remove(head, n)
-          node.free(n)
-          starter = starter + char - 0x11A7
-          starter_n.char, char = starter, starter
-          lookup = composition_mapping[starter]
-          n = starter_n
+          local new_starter = starter + char - 0x11A7
+          if (not allowed_characters or allowed_characters[new_starter]) and (not preserve_attr or starter_n.attr == n.attr) then
+            node.remove(head, n)
+            node.free(n)
+            starter = new_starter
+            starter_n.char, char = starter, starter
+            lookup = composition_mapping[starter]
+            n = starter_n
+          end
         end
       else
         last_ccc = this_ccc
@@ -398,6 +419,14 @@ local function nodes_to_nfc(head, f)
       if this_ccc == 300 then
         starter_n = n
         starter_decomposition = decomposition_mapping[char]
+        if allowed_characters and starter_decomposition then
+          for i=1, #starter_decomposition do
+            if not allowed_characters[starter_decomposition[i]] then
+              starter_decomposition = nil
+              break
+            end
+          end
+        end
         starter = starter_decomposition and starter_decomposition[1] or char
         starter_n.char = starter
         lookup = composition_mapping[starter]
