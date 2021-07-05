@@ -1,6 +1,6 @@
 kpse.set_program_name'lualatex'
 local normalize = require'lua-uni-normalize'
-local nodes_to_nfc = normalize.nodes_NFC
+local nodes_to_nfc = normalize.node.NFC
 -- local to_nfc, to_nfd, to_nfkc, to_nfkd = normalize.NFC, normalize.NFD, normalize.NFKC, normalize.NFKD
 
 local all_true = setmetatable({}, {__index = function() return true end})

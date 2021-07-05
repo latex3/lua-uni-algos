@@ -449,12 +449,19 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   return head
 end
 
+local todirect, tonode = node.direct.todirect, node.direct.tonode
+
 return {
   NFD = to_nfd,
   NFC = to_nfc,
   NFKD = to_nfkd,
   NFKC = to_nfkc,
-  nodes_NFC = nodes_to_nfc,
+  node = {
+    NFC = nodes_to_nfc,
+  },
+  direct = {
+    NFC = function(head, ...) return todirect(nodes_to_nfc(tonode(head), ...)) end,
+  },
 }
 -- print(require'inspect'{to_nfd{0x1E0A}, to_nfc{0x1E0A}})
 
