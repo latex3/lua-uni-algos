@@ -12,7 +12,7 @@ tdsroot = "luatex"
 
 uploadconfig = {
   pkg = module,
-  version = "v0.2",
+  version = "v0.3",
   author = "Marcel Krüger",
   license = "lppl1.3c",
   summary = "Unicode algorithms for LuaTeX",
