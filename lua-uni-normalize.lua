@@ -270,18 +270,33 @@ local function to_nfkc(s)
   return to_nfc_generic(s, compatibility_mapping)
 end
 
+local direct = node.direct
+local node_new = direct.new
+local node_copy = direct.copy
+local is_char = direct.is_char
+local setchar = direct.setchar
+local insert_after = direct.insert_after
+local insert_before = direct.insert_before
+local getnext = direct.getnext
+local remove = direct.remove
+local free = direct.free
+local getattrlist = direct.getattributelist
+local getprev = direct.getprev
+local setprev = direct.setprev
+local getboth = direct.getboth
+local setlink = direct.setlink
 -- allowed_characters only works reliably if it's closed under canonical decomposition mappings
 -- but it should fail in reasonable ways as long as it's at least closed under full canonical decompositions
 local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   if not head then return head end
-  local tmp_node = node.new'temp'
+  local tmp_node = node_new'temp'
   -- This is more complicated since we want to ensure that nodes (including their attributes and properties) are preserved whenever possible
   --
   -- We use three passes:
   -- 1. Decompose composition exclusions etc.
   local n = head
   while n do
-    local char = node.is_char(n, f)
+    local char = is_char(n, f)
     if char then
       local decomposed = decomposition_mapping[char]
       if decomposed then
@@ -299,52 +314,52 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
           end
           if available then
             -- Here we never want to compose again, so we can decompose directly
-            n.char = decomposed[1]
+            setchar(n, decomposed[1])
             for i=2, #decomposed do
-              local nn = node.copy(n)
-              nn.char = decomposed[i]
-              node.insert_after(head, n, nn)
+              local nn = node_copy(n)
+              setchar(nn, decomposed[i])
+              insert_after(head, n, nn)
               n = nn
             end
           end
         end
       end
     end
-    n = n.next
+    n = getnext(n)
   end
   -- 2. Reorder marks
   local last_ccc
   n = head
-  local prev = head.prev
-  tmp_node.next, head.prev = head, tmp_node
+  local prev = getprev(head)
+  setlink(tmp_node, head)
   while n do
-    local char = node.is_char(n, f)
+    local char = is_char(n, f)
     if char then
       local this_ccc = ccc[char]
       if last_ccc and this_ccc and last_ccc > this_ccc then
         local nn = n
         while nn ~= tmp_node do
-          nn = nn.prev
-          local nn_char = node.is_char(nn, f)
+          nn = getprev(nn)
+          local nn_char = is_char(nn, f)
           if not nn_char then break end
           local nn_ccc = ccc[nn_char]
           if not nn_ccc or nn_ccc <= this_ccc then break end
         end
-        local before, after = n.prev, n.next
-        node.insert_after(head, nn, n)
-        before.next = after
-        if after then after.prev = before end
+        local before, after = getboth(n)
+        insert_after(head, nn, n)
+        setlink(before, after)
         n = after
       else
-        n = n.next
+        n = getnext(n)
         last_ccc = this_ccc
       end
     else
-      n = n.next
+      n = getnext(n)
       last_ccc = nil
     end
   end
-  head, head.prev = tmp_node.next, prev
+  head = getnext(tmp_node)
+  setprev(head, prev)
   -- 3. The rest: Maybe decompose and then compose again
   local starter_n, starter, lookup
   local starter_decomposition
@@ -352,20 +367,20 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   local i -- index into starter_decomposition
   local i_ccc
   n = head
-  node.insert_after(head, nil, tmp_node)
+  insert_after(head, nil, tmp_node)
   repeat
-    local char = node.is_char(n, f)
+    local char = is_char(n, f)
     local this_ccc = ccc[char] or 300
     while i and i_ccc <= this_ccc do
       local new_starter = lookup and lookup[starter_decomposition[i]]
       if new_starter and (not allowed_characters or allowed_characters[new_starter]) then
         starter = new_starter
-        starter_n.char = starter
+        setchar(starter_n, starter)
         lookup = composition_mapping[starter]
       else
-        local nn = node.copy(starter_n)
-        nn.char = starter_decomposition[i]
-        node.insert_before(head, n, nn)
+        local nn = node_copy(starter_n)
+        setchar(nn, starter_decomposition[i])
+        insert_before(head, n, nn)
         last_ccc = i_ccc
       end
       i = i + 1
@@ -379,13 +394,14 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
     if char then
       if lookup and (this_ccc == 300) == (this_ccc == last_ccc) then
         local new_starter = lookup[char]
-        if new_starter and (not allowed_characters or allowed_characters[new_starter]) and (not preserve_attr or starter_n.attr == n.attr) then
-          local last = n.prev
-          node.remove(head, n)
-          node.free(n)
+        if new_starter and (not allowed_characters or allowed_characters[new_starter]) and (not preserve_attr or getattrlist(starter_n) == getattrlist(n)) then
+          local last = getprev(n)
+          remove(head, n)
+          free(n)
           n = last
           starter = new_starter
-          starter_n.char, char = starter, starter
+          setchar(starter_n, starter)
+          char = starter
           lookup = composition_mapping[starter]
         else
           last_ccc = this_ccc
@@ -394,21 +410,23 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
       elseif not lookup and this_ccc == 300 and last_ccc == 300 then
         if starter >= 0x1100 and starter <= 0x1112 and char >= 0x1161 and char <= 0x1175 then -- L + V -> LV
           local new_starter = ((starter - 0x1100) * 21 + char - 0x1161) * 28 + 0xAC00
-          if (not allowed_characters or allowed_characters[new_starter]) and (not preserve_attr or starter_n.attr == n.attr) then
-            node.remove(head, n)
-            node.free(n)
+          if (not allowed_characters or allowed_characters[new_starter]) and (not preserve_attr or getattrlist(starter_n) == getattrlist(n)) then
+            remove(head, n)
+            free(n)
             starter = starter
-            starter_n.char, char = starter, starter
+            setchar(starter_n, starter)
+            char = starter
             lookup = composition_mapping[starter]
             n = starter_n
           end
         elseif char >= 0x11A8 and char <= 0x11C2 and starter >= 0xAC00 and starter <= 0xD7A3 and (starter-0xAC00) % 28 == 0 then -- LV + T -> LVT
           local new_starter = starter + char - 0x11A7
-          if (not allowed_characters or allowed_characters[new_starter]) and (not preserve_attr or starter_n.attr == n.attr) then
-            node.remove(head, n)
-            node.free(n)
+          if (not allowed_characters or allowed_characters[new_starter]) and (not preserve_attr or getattrlist(starter_n) == getattrlist(n)) then
+            remove(head, n)
+            free(n)
             starter = new_starter
-            starter_n.char, char = starter, starter
+            setchar(starter_n, starter)
+            char = starter
             lookup = composition_mapping[starter]
             n = starter_n
           end
@@ -428,7 +446,7 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
           end
         end
         starter = starter_decomposition and starter_decomposition[1] or char
-        starter_n.char = starter
+        setchar(starter_n, starter)
         lookup = composition_mapping[starter]
         if starter_decomposition then
           i, i_ccc = 2, ccc[starter_decomposition[2]] or 300
@@ -440,16 +458,16 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
       starter, lookup, last_ccc, last_decomposition, i, i_ccc = nil
     end
     if n == tmp_node then
-      node.remove(head, tmp_node)
+      remove(head, tmp_node)
       break
     end
-    n = n.next
+    n = getnext(n)
   until false
-  node.free(tmp_node)
+  free(tmp_node)
   return head
 end
 
-local todirect, tonode = node.direct.todirect, node.direct.tonode
+local todirect, tonode = direct.todirect, direct.tonode
 
 return {
   NFD = to_nfd,
@@ -457,10 +475,10 @@ return {
   NFKD = to_nfkd,
   NFKC = to_nfkc,
   node = {
-    NFC = nodes_to_nfc,
+    NFC = function(head, ...) return tonode(nodes_to_nfc(todirect(head), ...)) end,
   },
   direct = {
-    NFC = function(head, ...) return todirect(nodes_to_nfc(tonode(head), ...)) end,
+    NFC = nodes_to_nfc,
   },
 }
 -- print(require'inspect'{to_nfd{0x1E0A}, to_nfc{0x1E0A}})
