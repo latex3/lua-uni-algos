@@ -21,7 +21,9 @@ local char = utf8.char
 local codes = utf8.codes
 local unpack = table.unpack
 
-kpse.set_program_name'kpsewhich'
+if tex.initialize then
+  kpse.set_program_name'kpsewhich'
+end
 local ccc, composition_mapping, decomposition_mapping, compatibility_mapping, nfc_qc do
   local function doubleset(ts, key, v1, kind, v2)
     ts[1][key] = v1
@@ -311,6 +313,15 @@ local function to_nfc(s)
 end
 local function to_nfkc(s)
   return to_nfc_generic(s, compatibility_mapping)
+end
+
+if tex.initialize then
+  return {
+    NFD = to_nfd,
+    NFC = to_nfc,
+    NFKD = to_nfkd,
+    NFKC = to_nfkc,
+  }
 end
 
 local direct = node.direct
