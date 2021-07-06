@@ -1,12 +1,12 @@
 # The lua-uni-algos Package
 
-Version: v0.3
+Version: v0.4
 
 Date: 2021-07-05
 
 Author: Marcel Krüger
 
-License: LPPL v1.3c
+License: LPPL v1.3
 
 A collection of small Lua modules implementing some if the most generic Unicode algorithms for use with LuaTeX.
 This package tries to reduce duplicated work by collecting a set of small utilities which can be used be useful for many LuaTeX packages dealing with Unicode strings.

@@ -328,8 +328,13 @@ local getprev = direct.getprev
 local setprev = direct.setprev
 local getboth = direct.getboth
 local setlink = direct.setlink
+
 -- allowed_characters only works reliably if it's closed under canonical decomposition mappings
 -- but it should fail in reasonable ways as long as it's at least closed under full canonical decompositions
+--
+-- This could be adapted to NFKC as above except that we would either need to handle Hangul syllables
+-- while iterating over starter_decomposition or adapt ~5 entries in compatibility_mapping to not decompose the syllables.
+-- We don't do this currently since I don't see a usecase for NFKC normalized nodes.
 local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   if not head then return head end
   local tmp_node = node_new'temp'
@@ -516,6 +521,105 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   return head
 end
 
+-- This is almost the same as the first loop from nodes_to_nfc, just without checking for NFC_QC and decomposing everything instead.
+-- Also we have to decompose Hangul syllables.
+-- No preserve_attr parameter since we never compose.
+local function nodes_to_nfd_generic(decomposition_mapping, head, f, allowed_characters)
+  if not head then return head end
+  local tmp_node = node_new'temp'
+  -- This is more complicated since we want to ensure that nodes (including their attributes and properties) are preserved whenever possible
+  --
+  -- We use three passes:
+  -- 1&2. Decompose everything with NFC_Quick_Check == No and reorder marks
+  local last_ccc
+  local n = head
+  local prev = getprev(head)
+  setlink(tmp_node, head)
+  while n do
+    local char = is_char(n, f)
+    if char then
+      local decomposed = decomposition_mapping[char]
+      if decomposed then
+        local available = true
+        if allowed_characters then
+          -- This is probably buggy for weird fonts
+          for i=1, #decomposed do
+            if not allowed_characters[decomposed[i]] then
+              available = false
+              break
+            end
+          end
+        end
+        if available then
+          local n = n
+          char = decomposed[1]
+          setchar(n, char)
+          for i=2, #decomposed do
+            local nn = node_copy(n)
+            setchar(nn, decomposed[i])
+            insert_after(head, n, nn)
+            n = nn
+          end
+        end
+      elseif char >= 0xAC00 and char <= 0xD7A3 then -- Hangul clusters. In this case we update n since we never need to reorder them anyway
+        local c = char - 0xAC00
+        local t = 0x11A7 + c % 28
+        c = c // 28
+        local l = 0x1100 + c // 21
+        local v = 0x1161 + c % 21
+        if not allowed_characters or (allowed_characters[l] and allowed_characters[v] and (t == 0x11A7 or allowed_characters[t])) then
+          setchar(n, l)
+          local nn = node_copy(n)
+          setchar(nn, v)
+          insert_after(head, n, nn)
+          n = nn
+          char = v
+          if t ~= 0x11A7 then
+            nn = node_copy(n)
+            setchar(nn, t)
+            insert_after(head, n, nn)
+            n = nn
+            char = t
+          end
+        end
+      end
+      -- Now reorder marks. The goal here is to reduce the overhead
+      -- in the common case that no reordering is needed
+      local this_ccc = ccc[char]
+      if last_ccc and this_ccc and last_ccc > this_ccc then
+        local nn = n
+        while nn ~= tmp_node do
+          nn = getprev(nn)
+          local nn_char = is_char(nn, f)
+          if not nn_char then break end
+          local nn_ccc = ccc[nn_char]
+          if not nn_ccc or nn_ccc <= this_ccc then break end
+        end
+        local before, after = getboth(n)
+        insert_after(head, nn, n)
+        setlink(before, after)
+        n = after
+      else
+        n = getnext(n)
+        last_ccc = this_ccc
+      end
+    else
+      n = getnext(n)
+      last_ccc = nil
+    end
+  end
+  head = getnext(tmp_node)
+  setprev(head, prev)
+  free(tmp_node)
+  return head
+end
+local function nodes_to_nfd(head, f, allowed_characters)
+  return nodes_to_nfd_generic(decomposition_mapping, head, f, allowed_characters)
+end
+local function nodes_to_nfkd(head, f, allowed_characters)
+  return nodes_to_nfd_generic(compatibility_mapping, head, f, allowed_characters)
+end
+
 local todirect, tonode = direct.todirect, direct.tonode
 
 return {
@@ -525,9 +629,13 @@ return {
   NFKC = to_nfkc,
   node = {
     NFC = function(head, ...) return tonode(nodes_to_nfc(todirect(head), ...)) end,
+    NFD = function(head, ...) return tonode(nodes_to_nfd(todirect(head), ...)) end,
+    NFKD = function(head, ...) return tonode(nodes_to_nfkd(todirect(head), ...)) end,
   },
   direct = {
     NFC = nodes_to_nfc,
+    NFD = nodes_to_nfd,
+    NFKD = nodes_to_nfkd,
   },
 }
 -- print(require'inspect'{to_nfd{0x1E0A}, to_nfc{0x1E0A}})

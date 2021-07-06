@@ -2,7 +2,7 @@
 \usepackage{doc, shortvrb, metalogo, hyperref, fontspec}
 % \setmainfont{Noto Serif}
 % \setmonofont{FreeMono}
-\title{Unicode algorithms for Lua\TeX\thanks{This document corresponds to \pkg{lua-uni-algos} v0.3.}}
+\title{Unicode algorithms for Lua\TeX\thanks{This document corresponds to \pkg{lua-uni-algos} v0.4.}}
 \author{Marcel Krüger\thanks{E-Mail: \href{mailto:tex@2krueger.de}{\nolinkurl{tex@2krueger.de}}}}
 \MakeShortVerb\|
 \newcommand\pkg{\texttt}
@@ -51,11 +51,17 @@ NFKD:	Äpfel...
 (This example is shown in Latin Modern Mono which has the (for this purpose) very useful property of not handling combining character very well.
 In a well-behaving font, the `...C` and `...D` lines should look the same.)
 
-Additionally for NFC direct normalization of Lua\TeX\ node lists is supported.
+Additionally for direct normalization of Lua\TeX\ node lists is supported.
 There are two functions |normalize.node.NFC| and |normalize.direct.NFC| taking upto four parameters: The first parameter is the head of the node list to be converted.
 The second parameter is the font id of the affected character nodes. Only non-protected glyph nodes of the specified font will be normalized. Pass |nil| for the font
 to normalize without respecting the font in the process. The third parameter is an optional table. If it is not |nil|, normalization is supressed if it might add glyph
 which map to |false| (or |nil|) in this table. If the forth argument is |true|, normalization will never join two glyph nodes with different attributes.
+
+For NFD and NFKD equivalent functions exists without the last parameter (since they never compose nodes, they never have to deal with composing nodes with different
+attributes.
+
+NFKC is not supported for node list normalization since the author is not convinced that there is any usecase for it. (Probably there isn't any usecase for node list
+NFKD normalization either, but that was easy to implement while NFKC would need separate data tables.
 
 \section{Case folding}
 For case folding load the Lua module |lua-uni-case|.

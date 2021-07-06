@@ -1,19 +1,17 @@
 kpse.set_program_name'lualatex'
 local normalize = require'lua-uni-normalize'
-local nodes_to_nfc = normalize.node.NFC
+local nodes_to_nfc, nodes_to_nfd, nodes_to_nfkd = normalize.node.NFC, normalize.node.NFD, normalize.node.NFKD
 -- local to_nfc, to_nfd, to_nfkc, to_nfkd = normalize.NFC, normalize.NFD, normalize.NFKC, normalize.NFKD
 
 local all_true = setmetatable({}, {__index = function() return true end})
-local function to_nfc(s, allowed_characters, preserve_attr)
+local function adapt_nodefunction(func, s, ...)
   local head, last
   for _, cp in utf8.codes(s) do
     local n = node.new'glyph'
     n.char, n.font = cp, 1
     head, last = node.insert_after(head, last, n)
   end
-  -- head = nodes_to_nfc(head, 1)
-  head = nodes_to_nfc(head, 1, allowed_characters, true)
-  -- head = nodes_to_nfc(head, 1, all_true, true)
+  head = func(head, 1, ...)
   local codepoints = {}
   last = 0
   for n in node.traverse(head) do
@@ -23,24 +21,24 @@ local function to_nfc(s, allowed_characters, preserve_attr)
   return utf8.char(table.unpack(codepoints))
 end
 local function dostep(orig, nfc, nfd, nfkc, nfkd)
-  local our_nfc = to_nfc(orig, all_true, true)
-  local our_second_nfc = to_nfc(nfd, all_true, true) -- Verify that we also normalize fully decomposed things correctly
-  -- local our_nfd = to_nfd(orig)
+  local our_nfc = adapt_nodefunction(nodes_to_nfc, orig, all_true, true)
+  local our_second_nfc = adapt_nodefunction(nodes_to_nfc, nfd, all_true, true) -- Verify that we also normalize fully decomposed things correctly
+  local our_nfd = adapt_nodefunction(nodes_to_nfd, orig, all_true)
   -- local our_nfkc = to_nfkc(orig)
-  -- local our_nfkd = to_nfkd(orig)
-  if nfc ~= our_nfc or nfc ~= our_second_nfc then
-  -- if nfc ~= our_nfc or nfd ~= our_nfd or nfkc ~= our_nfkc or nfkd ~= our_nfkd then
+  local our_nfkd = adapt_nodefunction(nodes_to_nfkd, orig, all_true)
+  if nfc ~= our_nfc or nfc ~= our_second_nfc or nfd ~= our_nfd --[[nfkc ~= our_nfkc]] or nfkd ~= our_nfkd then
+  -- if nfc ~= our_nfc or nfd ~= our_nfd or nfkc ~= our_nfkc then
     return {
       orig = orig,
       nfc = nfc ~= our_nfc and our_nfc or nil,
-      nfc2 = nfc ~= our_second_nfc and our_second_nfc or nil,
+      nfc2 = our_nfc ~= our_second_nfc and our_second_nfc or nil,
       exp_nfc = nfc ~= our_nfc and nfc or nil,
-      -- nfd = nfd ~= our_nfd and our_nfd or nil,
-      -- exp_nfd = nfd ~= our_nfd and nfd or nil,
+      nfd = nfd ~= our_nfd and our_nfd or nil,
+      exp_nfd = nfd ~= our_nfd and nfd or nil,
       -- nfkc = nfkc ~= our_nfkc and our_nfkc or nil,
       -- exp_nfkc = nfkc ~= our_nfkc and nfkc or nil,
-      -- nfkd = nfkd ~= our_nfkd and our_nfkd or nil,
-      -- exp_nfkd = nfkd ~= our_nfkd and nfkd or nil,
+      nfkd = nfkd ~= our_nfkd and our_nfkd or nil,
+      exp_nfkd = nfkd ~= our_nfkd and nfkd or nil,
     }
   end
   return false
