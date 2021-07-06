@@ -21,4 +21,5 @@ uploadconfig = {
   repository = "https://github.com/zauguin/lua-uni-algos",
   bugtracker = "https://github.com/zauguin/lua-uni-algos/issues",
   topic = {"luatex", "unicode"},
+  announcement_file = "announce",
 }

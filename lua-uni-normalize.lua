@@ -336,44 +336,44 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   -- This is more complicated since we want to ensure that nodes (including their attributes and properties) are preserved whenever possible
   --
   -- We use three passes:
-  -- 1. Decompose everything with NFC_Quick_Check No
-  local n = head
-  while n do
-    local char = is_char(n, f)
-    if char and nfc_qc[char] == false then
-      local decomposed = decomposition_mapping[char]
-      local available = true
-      if allowed_characters then
-        -- This is probably buggy for werd fonts
-        for i=1, #decomposed do
-          if not allowed_characters[decomposed[i]] then
-            available = false
-            break
-          end
-        end
-      end
-      if available then
-        -- Here we never want to compose again, so we can decompose directly
-        setchar(n, decomposed[1])
-        for i=2, #decomposed do
-          local nn = node_copy(n)
-          setchar(nn, decomposed[i])
-          insert_after(head, n, nn)
-          n = nn
-        end
-      end
-    end
-    n = getnext(n)
-  end
-  -- 2. Reorder marks
+  -- 1&2. Decompose everything with NFC_Quick_Check == No and reorder marks
   local last_ccc
-  n = head
+  local n = head
   local prev = getprev(head)
   setlink(tmp_node, head)
   local require_work
   while n do
     local char = is_char(n, f)
     if char then
+      local qc = nfc_qc[char]
+      if qc == false then
+        local decomposed = decomposition_mapping[char]
+        local available = true
+        if allowed_characters then
+          -- This is probably buggy for weird fonts
+          for i=1, #decomposed do
+            if not allowed_characters[decomposed[i]] then
+              available = false
+              break
+            end
+          end
+        end
+        if available then
+          -- Here we never want to compose again, so we can decompose directly
+          local n = n
+          char = decomposed[1]
+          qc = nfc_qc[char]
+          setchar(n, char)
+          for i=2, #decomposed do
+            local nn = node_copy(n)
+            setchar(nn, decomposed[i])
+            insert_after(head, n, nn)
+            n = nn
+          end
+        end
+      end
+      -- Now reorder marks. The goal here is to reduce the overhead
+      -- in the common case that no reordering is needed
       local this_ccc = ccc[char]
       if last_ccc and this_ccc and last_ccc > this_ccc then
         local nn = n
@@ -392,7 +392,7 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
         n = getnext(n)
         last_ccc = this_ccc
       end
-      require_work = require_work or nfc_qc[char]
+      require_work = require_work or qc
     else
       n = getnext(n)
       last_ccc = nil
