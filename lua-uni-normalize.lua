@@ -371,6 +371,7 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   repeat
     local char = is_char(n, f)
     local this_ccc = ccc[char] or 300
+    local is_composed -- Did we generate char through composition?
     while i and i_ccc <= this_ccc do
       local new_starter = lookup and lookup[starter_decomposition[i]]
       if new_starter and (not allowed_characters or allowed_characters[new_starter]) then
@@ -401,7 +402,7 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
           n = last
           starter = new_starter
           setchar(starter_n, starter)
-          char = starter
+          char, is_composed = starter, true
           lookup = composition_mapping[starter]
         else
           last_ccc = this_ccc
@@ -415,7 +416,7 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
             free(n)
             starter = new_starter
             setchar(starter_n, starter)
-            char = starter
+            char, is_composed = starter, true
             lookup = composition_mapping[starter]
             n = starter_n
           end
@@ -426,7 +427,7 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
             free(n)
             starter = new_starter
             setchar(starter_n, starter)
-            char = starter
+            char, is_composed = starter, true
             lookup = composition_mapping[starter]
             n = starter_n
           end
@@ -436,23 +437,27 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
       end
       if this_ccc == 300 then
         starter_n = n
-        starter_decomposition = decomposition_mapping[char]
-        if allowed_characters and starter_decomposition then
-          for i=1, #starter_decomposition do
-            if not allowed_characters[starter_decomposition[i]] then
-              starter_decomposition = nil
-              break
+        if is_composed then -- If we just composed starter, we don't want to decompose it again
+          starter = char
+        else
+          starter_decomposition = decomposition_mapping[char]
+          if allowed_characters and starter_decomposition then
+            for i=1, #starter_decomposition do
+              if not allowed_characters[starter_decomposition[i]] then
+                starter_decomposition = nil
+                break
+              end
             end
           end
+          starter = starter_decomposition and starter_decomposition[1] or char
+          setchar(starter_n, starter)
+          if starter_decomposition then
+            i, i_ccc = 2, ccc[starter_decomposition[2]] or 300
+          else
+            i, i_ccc = nil
+          end
         end
-        starter = starter_decomposition and starter_decomposition[1] or char
-        setchar(starter_n, starter)
         lookup = composition_mapping[starter]
-        if starter_decomposition then
-          i, i_ccc = 2, ccc[starter_decomposition[2]] or 300
-        else
-          i, i_ccc = nil
-        end
       end
     else
       starter, lookup, last_ccc, last_decomposition, i, i_ccc = nil
