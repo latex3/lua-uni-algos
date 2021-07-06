@@ -24,14 +24,16 @@ local function to_nfc(s, allowed_characters, preserve_attr)
 end
 local function dostep(orig, nfc, nfd, nfkc, nfkd)
   local our_nfc = to_nfc(orig, all_true, true)
+  local our_second_nfc = to_nfc(nfd, all_true, true) -- Verify that we also normalize fully decomposed things correctly
   -- local our_nfd = to_nfd(orig)
   -- local our_nfkc = to_nfkc(orig)
   -- local our_nfkd = to_nfkd(orig)
-  if nfc ~= our_nfc then
+  if nfc ~= our_nfc or nfc ~= our_second_nfc then
   -- if nfc ~= our_nfc or nfd ~= our_nfd or nfkc ~= our_nfkc or nfkd ~= our_nfkd then
     return {
       orig = orig,
       nfc = nfc ~= our_nfc and our_nfc or nil,
+      nfc2 = nfc ~= our_second_nfc and our_second_nfc or nil,
       exp_nfc = nfc ~= our_nfc and nfc or nil,
       -- nfd = nfd ~= our_nfd and our_nfd or nil,
       -- exp_nfd = nfd ~= our_nfd and nfd or nil,
