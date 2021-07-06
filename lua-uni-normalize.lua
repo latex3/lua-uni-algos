@@ -370,6 +370,7 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   n = head
   local prev = getprev(head)
   setlink(tmp_node, head)
+  local require_work
   while n do
     local char = is_char(n, f)
     if char then
@@ -391,6 +392,7 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
         n = getnext(n)
         last_ccc = this_ccc
       end
+      require_work = require_work or nfc_qc[char]
     else
       n = getnext(n)
       last_ccc = nil
@@ -398,6 +400,10 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   end
   head = getnext(tmp_node)
   setprev(head, prev)
+  if not require_work then
+    free(tmp_node)
+    return head
+  end
   -- 3. The rest: Maybe decompose and then compose again
   local starter_n, starter, lookup
   local starter_decomposition
