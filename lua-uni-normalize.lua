@@ -336,35 +336,30 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
   -- This is more complicated since we want to ensure that nodes (including their attributes and properties) are preserved whenever possible
   --
   -- We use three passes:
-  -- 1. Decompose composition exclusions etc.
+  -- 1. Decompose everything with NFC_Quick_Check No
   local n = head
   while n do
     local char = is_char(n, f)
-    if char then
+    if char and nfc_qc[char] == false then
       local decomposed = decomposition_mapping[char]
-      if decomposed then
-        local compose_lookup = composition_mapping[decomposed[1]]
-        if not (compose_lookup and compose_lookup[decomposed[2]]) then
-          local available = true
-          if allowed_characters then
-            -- This is probably buggy for werd fonts
-            for i=1, #decomposed do
-              if not allowed_characters[decomposed[i]] then
-                available = false
-                break
-              end
-            end
+      local available = true
+      if allowed_characters then
+        -- This is probably buggy for werd fonts
+        for i=1, #decomposed do
+          if not allowed_characters[decomposed[i]] then
+            available = false
+            break
           end
-          if available then
-            -- Here we never want to compose again, so we can decompose directly
-            setchar(n, decomposed[1])
-            for i=2, #decomposed do
-              local nn = node_copy(n)
-              setchar(nn, decomposed[i])
-              insert_after(head, n, nn)
-              n = nn
-            end
-          end
+        end
+      end
+      if available then
+        -- Here we never want to compose again, so we can decompose directly
+        setchar(n, decomposed[1])
+        for i=2, #decomposed do
+          local nn = node_copy(n)
+          setchar(nn, decomposed[i])
+          insert_after(head, n, nn)
+          n = nn
         end
       end
     end
