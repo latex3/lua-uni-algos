@@ -22,7 +22,7 @@ local codes = utf8.codes
 local unpack = table.unpack
 
 kpse.set_program_name'kpsewhich'
-local ccc, composition_mapping, decomposition_mapping, compatibility_mapping do
+local ccc, composition_mapping, decomposition_mapping, compatibility_mapping, nfc_qc do
   local function doubleset(ts, key, v1, kind, v2)
     ts[1][key] = v1
     ts[3][key] = v2
@@ -72,6 +72,30 @@ local ccc, composition_mapping, decomposition_mapping, compatibility_mapping do
     [0x1D1BB] = true, [0x1D1BC] = true, [0x1D1BD] = true, [0x1D1BE] = true,
     [0x1D1BF] = true, [0x1D1C0] = true,
   }
+
+  -- We map for NFC_QC:
+  --   No -> false
+  --   Maybe -> true
+  --   Yes -> nil
+  -- since Yes should be the default.
+  nfc_qc = {}
+  for cp, decomp in next, decomposition_mapping do
+    if ccc[cp] or ccc[decomp[1]] then
+      nfc_qc[cp] = false
+    elseif #decomp == 1 then
+      nfc_qc[cp] = false
+    elseif composition_exclusions[cp] then
+      nfc_qc[cp] = false
+    else
+      nfc_qc[decomp[2]] = true
+    end
+  end
+  for i=0x1161, 0x1175 do
+    nfc_qc[i] = true
+  end
+  for i=0x11A8, 0x11C2 do
+    nfc_qc[i] = true
+  end
 
   for cp, decomp in next, decomposition_mapping do
     if #decomp > 1 and not (composition_exclusions[cp] or ccc[decomp[1]]) then
@@ -144,6 +168,25 @@ local ccc, composition_mapping, decomposition_mapping, compatibility_mapping do
   for cp, decomp in next, compatibility_mapping do
     fixup_decomp(cp, decomp)
   end
+
+  --[[ To verify that nfc_qc is correctly generated
+  local ref_nfc_qc = p.parse_file('DerivedNormalizationProps', l.Cf(
+    l.Ct'' * (
+      l.Cg(p.fields(p.codepoint_range,
+                    'NFC_QC',
+                    'N' * l.Cc(false) + 'M' * l.Cc(true))) + p.ignore_line
+    )^0 * -1, p.multiset))
+  for k,v in next, ref_nfc_qc do
+    if nfc_qc[k] ~= v then
+      print('MISMATCH1', k, v, nfc_qc[k])
+    end
+  end
+  for k,v in next, nfc_qc do
+    if ref_nfc_qc[k] ~= v then
+      print('MISMATCH2', k, v)
+    end
+  end
+  ]]
 end
 
 local function ccc_reorder(codepoints, i, j, k)
