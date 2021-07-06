@@ -413,7 +413,7 @@ local function nodes_to_nfc(head, f, allowed_characters, preserve_attr)
           if (not allowed_characters or allowed_characters[new_starter]) and (not preserve_attr or getattrlist(starter_n) == getattrlist(n)) then
             remove(head, n)
             free(n)
-            starter = starter
+            starter = new_starter
             setchar(starter_n, starter)
             char = starter
             lookup = composition_mapping[starter]
