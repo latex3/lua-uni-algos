@@ -12,7 +12,7 @@ A collection of small Lua modules implementing some if the most generic Unicode 
 This package tries to reduce duplicated work by collecting a set of small utilities which can be used be useful for many LuaTeX packages dealing with Unicode strings.
 There is no user-level functionality provided.
 
-Additional Unicode algorithms will be added in the future, if you need a specific algorithm feel free to open an issue on GitHub or send me an e-mail.
+Additional Unicode algorithms will be added in the future, if you need a specific algorithm feel free to open an issue on GitHub.
 
 
 ## Requirements
@@ -22,7 +22,7 @@ Additionally, it expects an up-to-date version of the `unicode-data` package to 
 
 
 ## Support
-If you found a bug, please open an [issue on GitHub](https://github.com/zauguin/lua-uni-algos/issues) or contact me by mail at <tex@2krueger.de>.
+If you found a bug, please open an [issue on GitHub](https://github.com/latex3/lua-uni-algos/issues).
 
 ## Installation
 
