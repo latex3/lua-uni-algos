@@ -115,7 +115,7 @@ local ccc, composition_mapping, decomposition_mapping, compatibility_mapping, nf
     local first_decomp = decomposition_mapping[first]
     if not first_decomp then return false end
     if fixup_decomp(first_decomp) then
-      print('nested', first)
+      -- print('nested', first)
     end
     move(decomp, 2, #decomp, #first_decomp + 1)
     move(first_decomp, 1, #first_decomp, 1, decomp)
