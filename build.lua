@@ -12,7 +12,7 @@ tdsroot = "luatex"
 
 uploadconfig = {
   pkg = module,
-  version = "v0.4",
+  version = "v0.4.1",
   author = "Marcel Krüger, The LaTeX Team",
   license = "lppl1.3",
   summary = "Unicode algorithms for LuaTeX",
@@ -21,5 +21,5 @@ uploadconfig = {
   repository = "https://github.com/latex3/lua-uni-algos",
   bugtracker = "https://github.com/latex3/lua-uni-algos/issues",
   topic = {"luatex", "unicode"},
-  announcement_file = "announce",
+  -- announcement_file = "announce",
 }

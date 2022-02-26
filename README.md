@@ -1,8 +1,8 @@
 # The lua-uni-algos Package
 
-Version: v0.4
+Version: v0.4.1
 
-Date: 2021-08-08
+Date: 2022-02-26
 
 Author: Marcel Krüger
 
