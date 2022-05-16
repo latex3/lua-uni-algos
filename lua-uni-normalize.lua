@@ -315,7 +315,7 @@ local function to_nfkc(s)
   return to_nfc_generic(s, compatibility_mapping)
 end
 
-if tex.initialize then
+if not tex or tex.initialize then
   return {
     NFD = to_nfd,
     NFC = to_nfc,
