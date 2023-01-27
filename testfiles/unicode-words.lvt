@@ -1,0 +1,5 @@
+\input{regression-test.tex}
+\documentclass{article}
+\START
+\directlua{require'word_test'}
+\END
