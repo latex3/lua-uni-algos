@@ -17,6 +17,7 @@ Currently this package implements:
   \item[Unicode normalization] Normalize a given Lua string into any of the normalization forms NFC, NFD, NFKC, or NFKD as specified in the Unicode standard, section 2.12.
   \item[Case folding] Fold Unicode codepoints into a form which eliminates all case distinctions. This can be used for case-independent matching of strings. Not to be confused with case mapping which maps all characters to lower/upper/titlecase: In contrast to case mapping, case folding is mostly locale independent but does not give results which should be shown to users.
   \item[Grapheme cluster segmentation] Identify a grapheme cluster, a unit of text which is perceived as a single character by typical users, according to the rules in UAX \#29, section 3.
+  \item[Word boundary segmentation] Identify word boundaries according to the rules in UAX \#29, section 4.
 \end{description}
 \section{Normalization}
 Unicode normalization is handled by the Lua module |lua-uni-normalize|.
@@ -179,5 +180,44 @@ print(new_cluster)
 \noindent meaning the first and third codepoint start a new cluster.
 
 Do not try to interpret the |state|, it has no defined values and might change at any point.
+
+\section{Word boundaries}
+Word segmentation is handled by the Lua module |lua-uni-words|.
+You can either load it directly with
+\begin{verbatim}
+local words = require'lua-uni-words'
+\end{verbatim}
+or if you need access to all implemented algorithms you can use
+\begin{verbatim}
+local uni_algos = require'lua-uni-algos'
+local words = uni_algos.words
+\end{verbatim}
+
+This is used to identify word boundaries. Unicode describes these as the boundaries users would expect when searching in a text for whole words.
+
+The UAX also suggests that for some use-cases useful words can be determined from these by taking any segment between word boundaries and filtering out all segments ``containing only whitespace, punctuation and similar characters''.
+
+Currently only the string interface is recommended:
+
+\begin{verbatim}
+for final, first, word_segment in words.word_boundaries'This text will be split into words segments!' do
+  print('"' .. word_segment .. '"')
+end
+\end{verbatim}
+% \begin{verbatim}
+% for final, first, word_segment in words.word_boundaries'Z͑ͫ̓ͪ̂ͫ̽͏̴̙̤̞͉͚̯̞̠͍A̴̵̜̰͔ͫ͗͢L̠ͨͧͩ͘G̴̻͈͍͔̹̑͗̎̅͛́Ǫ̵̹̻̝̳͂̌̌͘!͖̬̰̙̗̿̋ͥͥ̂ͣ̐́́͜͞' do
+%   print(grapheme)
+% end
+% \end{verbatim}
+
+\noindent\begingroup
+  \ttfamily
+  \directlua{
+    local words = require'./lua-uni-words'
+    for final, first, word_segment in words.word_boundaries'This text will be split into words segments!' do
+      tex.sprint('"' .. word_segment .. '"\string\\\string\\')
+    end
+  }\par
+\endgroup
 
 \end{document}

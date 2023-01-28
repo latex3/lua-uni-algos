@@ -273,6 +273,43 @@ local function read_codepoint(cp, state)
   return new_word, state
 end
 
+-- A Lua iterator for strings -- Only reporting the beginning of every word segment
+local function word_boundaries_start(str)
+  local nextcode, str, i = utf8.codes(str)
+  local state = "START"
+  local saved_i, saved_code
+  return function()
+    local new_word, code
+    repeat
+      i, code = nextcode(str, i)
+      if saved_i then
+        new_word, state = state(code)
+        if new_word ~= nil then
+          i, code, saved_i, saved_code = saved_i, saved_code, nil, nil
+        end
+      else
+        if not i then return end
+        new_word, state = read_codepoint(code, state)
+        if new_word == nil then
+          saved_i, saved_code = i, code
+        end
+      end
+    until new_word
+    return i, code
+  end
+end
+-- A more useful iterator: returns the byterange of the segment in reverse order followed by a string with the word
+local function word_boundaries(str)
+  local iter = word_boundaries_start(str)
+  return function(_, cur)
+    if cur == #str then return end
+    local new = iter()
+    if not new then return #str, cur + 1, str:sub(cur + 1) end
+    return new - 1, cur + 1, str:sub(cur + 1, new - 1)
+  end, nil, iter() - 1
+end
 return {
   read_codepoint = read_codepoint,
+  word_boundaries_start = word_bounaries_start,
+  word_boundaries = word_boundaries,
 }

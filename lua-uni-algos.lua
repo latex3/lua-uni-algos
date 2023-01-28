@@ -17,4 +17,5 @@ return {
   case = require'lua-uni-case',
   graphemes = require'lua-uni-graphemes',
   normalize = require'lua-uni-normalize',
+  words = require'lua-uni-words',
 }
