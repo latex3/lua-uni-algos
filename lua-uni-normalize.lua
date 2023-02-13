@@ -21,9 +21,9 @@ local char = utf8.char
 local codes = utf8.codes
 local unpack = table.unpack
 
-if tex.initialize then
-  kpse.set_program_name'kpsewhich'
-end
+local kpse = require'kpse'
+kpse.set_program_name'kpsewhich'
+
 local ccc, composition_mapping, decomposition_mapping, compatibility_mapping, nfc_qc do
   local function doubleset(ts, key, v1, kind, v2)
     ts[1][key] = v1
