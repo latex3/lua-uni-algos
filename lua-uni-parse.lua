@@ -19,6 +19,9 @@ local lpeg = lpeg or require'lpeg'
 local R = lpeg.R
 local tonumber = tonumber
 
+local kpse = require'kpse'
+kpse.set_program_name'kpsewhich'
+
 local codepoint = lpeg.R('09', 'AF')^4 / function(c) return tonumber(c, 16) end
 local sep = lpeg.P' '^0 * ';' * lpeg.P' '^0
 local codepoint_range = codepoint * ('..' * codepoint + lpeg.Cc(false))
