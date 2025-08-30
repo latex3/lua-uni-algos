@@ -1,5 +1,5 @@
 -- lua-uni-words.lua
--- Copyright 2020--2023 Marcel Krüger
+-- Copyright 2025 Marcel Krüger
 --
 -- This work may be distributed and/or modified under the
 -- conditions of the LaTeX Project Public License, either version 1.3

@@ -1,0 +1,3 @@
+Add an implementation of the Unicode word segmentation algorithm and
+provide a dedicated interface in lua-uni-data.lua to allow other packages
+to reuse the parsed data and allow preloading it into formats.

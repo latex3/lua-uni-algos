@@ -12,9 +12,9 @@ tdsroot = "luatex"
 
 uploadconfig = {
   pkg = module,
-  version = "v0.4",
+  version = "v0.5",
   author = "Marcel Krüger, The LaTeX Team",
-  license = "lppl1.3",
+  license = "lppl1.3c",
   summary = "Unicode algorithms for LuaTeX",
   ctanPath = "/macros/luatex/generic/lua-uni-algos",
   update = true,
