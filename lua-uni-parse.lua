@@ -15,6 +15,9 @@
 
 -- Just a simple helper module to make UCD parsing more readable
 
+-- The rawget is needed here because of Context idiosyncrasies.
+local find_file = assert(kpse and rawget(kpse, 'find_file') or resolvers and resolvers.find_file, 'No file searching library found')
+
 local lpeg = lpeg or require'lpeg'
 local R = lpeg.R
 local tonumber = tonumber
@@ -47,7 +50,7 @@ local function parse_uni_file(filename, patt, func, ...)
   if func then
     return parse_uni_file(filename, lpeg.Cf(lpeg.Ct'' * patt^0 * -1, func), nil, ...)
   end
-  local resolved = kpse.find_file(filename .. '.txt')
+  local resolved = find_file(filename .. '.txt')
   if not resolved then
     error(string.format("Unable to find Unicode datafile %q", filename))
   end
