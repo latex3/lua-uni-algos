@@ -310,6 +310,6 @@ local function word_boundaries(str)
 end
 return {
   read_codepoint = read_codepoint,
-  word_boundaries_start = word_bounaries_start,
+  word_boundaries_start = word_boundaries_start,
   word_boundaries = word_boundaries,
 }
